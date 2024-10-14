@@ -13,13 +13,15 @@ To decode the capture, I first demodulate it with `demodulate.py`, and then impo
 My hunch is that it's regular old 8N1 UART data, but possibly inverted. In `decode_bytes.py` I read the exported XML from urh, verify start and stop bits, and extract the data bits. The output is stored in `messages.txt`, a sample is provided below:
 
 ```
-80 00 00 00 A0 5F 00 80 04 40 80 D3 8F
-80 00 80 00 D0 CF 80 7F 04 40 80 17 05 6C 20 A4 5C E9 90
-80 00 00 00 A0 5F 00 C0 04 80 08 F1 0C
-80 00 80 00 90 AF 40 7F 04 80 08 88 00 90 60 9B E6
+80 00 00 00 A0 5F 00 80 2C C4 80 F9 95
+80 00 80 00 D0 CF 80 7F 2C C4 80 00 00 00 00 00 00 1D 6E
+80 00 00 00 A0 5F 00 80 2C 44 80 F0 15
+80 00 80 00 D0 CF 80 7F 2C 44 80 00 00 00 00 00 00 2E ED
 ```
 
 If you look at the raw capture you can see two slightly different magnitudes, so I think it is reasonable to assume this are the two devices in a request/response interaction. It seems like the first bytes are just some kind of addressing or synchronization, with the third byte being `00` in the request and `80` in the response. Possibly the fifth byte could be some message ID.
+
+In some of the messages the last 8 bytes look like it could be an uint64 (`00 00 00 00 00 00 2E ED`), hopefully representing some useful value. The request has two bytes in that place. (`F9 95`) The three bytes before that match in the request and reply, and the byte before that is off by one. (`80 2C 44 80` -> `7F 2C 44 80`) Maybe there is some register ID or message sequence number in there?
 
 ## Future ideas
 
