@@ -7,7 +7,7 @@ Virtually every modern heater and thermostat will speak OpenTherm, but Remeha in
 ### Nov 6, 2024
 
 I have built a data logger with a comparator and an Arduino, and collected a good long chunk of messages in [log.txt](log.txt),
-while simultaneously collecting screenshots of the official app in [screenshots][screenshots] and adjusting the temperature between 20&deg;C and 22&deg;C.
+while simultaneously collecting screenshots of the official app in [screenshots](screenshots) and adjusting the temperature between 20&deg;C and 22&deg;C.
 
 The schematic of the datalogger is in [demodulator.pdf](demodulator.pdf), and the Arduino sketch is in [echo.ino](echo/echo.ino).
 
