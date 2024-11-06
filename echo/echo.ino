@@ -9,18 +9,20 @@
 // set this to the hardware serial port you wish to use
 #define HWSERIAL Serial1
 
-void setup() {
+void setup()
+{
 	Serial.begin(9600);
 	HWSERIAL.begin(9600);
 }
 
-void loop() {
-  int incomingByte;
-	if (HWSERIAL.available() > 0) {
+void loop()
+{
+	int incomingByte;
+	if (HWSERIAL.available() > 0)
+	{
 		incomingByte = HWSERIAL.read();
 		Serial.print(micros());
-    Serial.print(" ");
+		Serial.print(" ");
 		Serial.println(incomingByte, HEX);
 	}
 }
-
