@@ -4,6 +4,22 @@ Virtually every modern heater and thermostat will speak OpenTherm, but Remeha in
 
 ## Current status
 
+### Nov 8, 2024
+
+I have started building a parser that breaks a stream of bytes from the logger into messages.
+Turns out I was decoding the bit order wrong, and now some things are more obvious.
+The format seems to be
+
+
+| byte | meaning |
+|---|---|
+|`01 00`| header |
+| `01` | request/reply |
+| `00` | some bit flags? |
+| `07` | payload length |
+| `F7 01 FE` | unknown |
+| `10 03 01 FF FF 85 9C` | payload |
+
 ### Nov 6, 2024
 
 I have built a data logger with a comparator and an Arduino, and collected a good long chunk of messages in [log.txt](log.txt),
