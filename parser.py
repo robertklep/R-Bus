@@ -1,8 +1,11 @@
 import argparse
 from dataclasses import dataclass
 from typing import List, BinaryIO
+from collections import Counter
 import binascii
 import warnings
+from pprint import pprint
+import struct
 
 @dataclass
 class Message:
@@ -50,7 +53,7 @@ class MessageParser:
         payload_length = self.read_bytes(1)[0]
         
         # Parse unknown fields
-        unknown_1 = self.read_bytes(1)[0]
+        unknown_1 = self.read_bytes(1)[0] #msg type?
         unknown_2 = self.read_bytes(1)[0]
         unknown_3 = self.read_bytes(1)[0]
         
@@ -105,12 +108,23 @@ def main():
         parser = MessageParser(file)
         messages = parser.parse_all()
         
-        print(f"Found {len(messages)} messages:")
-        # for i, message in enumerate(messages, 1):
-        #     print(f"{i}: {message}")
-            
     finally:
         file.close()
+
+    c = Counter()
+    print(f"Found {len(messages)} messages:")
+    for i, m in enumerate(messages):
+        if m.unknown_1 == 0xfa:
+            # print(m)
+            r = messages[i+1]
+            request_hex = ' '.join(f'{b:02X}' for b in m.payload[0:3])
+            reply_hex = ' '.join(f'{b:02X}' for b in r.payload[0:3])
+            print(request_hex, "==", reply_hex, "=", request_hex == reply_hex)
+            c[f"{r.unknown_1:02X} {r.payload_length}"]+=1
+        if m.unknown_1 == 0xf3 and m.payload_length == 11:
+            # print(m)
+            print(struct.unpack("!BBBQ", m.payload))
+    pprint(c)
 
 if __name__ == "__main__":
     main()

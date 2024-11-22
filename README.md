@@ -4,6 +4,79 @@ Virtually every modern heater and thermostat will speak OpenTherm, but Remeha in
 
 ## Current status
 
+### Nov 22, 2024
+
+I have started poking around with the message type.
+I'm operating under the assumption that the first unknown byte is some kind of message type.
+A particular interaction caught my eye where a `FA` request was answered with an `F3` reply.
+In all `FA` requests there is a 5 byte payload that seems to be roughly
+
+| byte | meaning |
+|---|---|
+|`20 02 01` | address?|
+| `73 F0` | unknown |
+
+and a `F3` reply of the form
+
+| byte | meaning |
+|---|---|
+|`20 02 01` | same address |
+| `00 00 00 00 00 00 6C 4A` | uint_64? |
+
+I counted the reply bytes and their length and there seem to be 4 very common `Fx` replies with a common length. Most but not all follow the 3 byte "address" pattern.
+
+```
+Counter({'F7 7': 984,
+         'F5 9': 802,
+         'F8 6': 740,
+         'F3 11': 715,
+         'E6 24': 41,
+         'FE 1': 17,
+         'FA 5': 17,
+         'E5 25': 14,
+         'EF 15': 9,
+         '00 0': 5,
+         '2E 1': 3,
+         '2D 1': 1,
+         'F5 25': 1,
+         '7D 9': 1,
+         '2E 9': 1,
+         '01 100': 1,
+         'F9 5': 1,
+         'F3 43': 1,
+         '00 1': 1,
+         '0A 1': 1,
+         'A4 187': 1})
+```
+
+I tried parsing those supposed uint_64 with the following result. I was hoping it'd be something obvious like the temperature in millidegrees but while not miles off, not exactly. (recall it was 20&deg;C at the time)
+
+```
+(48, 35, 0, 12151716762370106083)
+(32, 2, 1, 16762457204505351945)
+(52, 33, 1, 25079)
+(32, 2, 1, 16762457204505351945)
+(32, 2, 1, 27722)
+(48, 35, 0, 13315615791068642237)
+(32, 2, 1, 16762457204505351945)
+(32, 2, 1, 27722)
+(52, 35, 1, 47222)
+(52, 34, 1, 29879)
+(52, 33, 1, 25079)
+(32, 2, 1, 16762457204505351945)
+(32, 2, 1, 27722)
+(48, 35, 0, 10876635117870837854)
+(32, 2, 1, 27722)
+(52, 35, 1, 47222)
+(52, 34, 1, 29879)
+(52, 33, 1, 25079)
+(48, 35, 0, 3173792004718625437)
+(32, 2, 1, 16762457204505351945)
+(32, 2, 1, 27722)
+```
+
+One thing that is slightly concerning is that there are some parse errors after really long messages. Not sure if just a glitch in the serial data, or something funky like replacing certain bytes. I remember Pokemon has a whole thing where they replace 0xFE with something else and then send a whole mask array, because 0xFE is their handshake byte.
+
 ### Nov 8, 2024
 
 I have started building a parser that breaks a stream of bytes from the logger into messages.
