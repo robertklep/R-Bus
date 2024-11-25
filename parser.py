@@ -6,15 +6,14 @@ import binascii
 import warnings
 from pprint import pprint
 import struct
+import re
 
 @dataclass
 class Message:
     is_reply: bool
     flags: int
     payload_length: int
-    unknown_1: int
-    unknown_2: int
-    unknown_3: int
+    unknowns: bytes
     payload: bytes
     
     def __str__(self):
@@ -22,7 +21,7 @@ class Message:
         return (f"{'Reply' if self.is_reply else 'Request'} "
                 f"flags={self.flags:08b} "
                 f"length={self.payload_length} "
-                f"unknown=[{self.unknown_1:02X} {self.unknown_2:02X} {self.unknown_3:02X}] "
+                f"unknowns={self.unknowns.hex()} "
                 f"payload={payload_hex}")
 
 class MessageParser:
@@ -53,9 +52,7 @@ class MessageParser:
         payload_length = self.read_bytes(1)[0]
         
         # Parse unknown fields
-        unknown_1 = self.read_bytes(1)[0] #msg type?
-        unknown_2 = self.read_bytes(1)[0]
-        unknown_3 = self.read_bytes(1)[0]
+        unknowns = self.read_bytes(3)
         
         # Read payload
         payload = self.read_bytes(payload_length)
@@ -64,9 +61,7 @@ class MessageParser:
             is_reply=is_reply,
             flags=flags,
             payload_length=payload_length,
-            unknown_1=unknown_1,
-            unknown_2=unknown_2,
-            unknown_3=unknown_3,
+            unknowns=unknowns,
             payload=payload
         )
     
@@ -112,23 +107,11 @@ def main():
         file.close()
 
     print(f"Found {len(messages)} messages:")
-    registers = {}
     for i, m in enumerate(messages):
-        # check if the messages is a request and if the first 3 bytes of the payload match the reply
-        if not m.is_reply and len(m.payload) >= 3 and m.payload[:3] == messages[i+1].payload[:3]:
-            registers.setdefault(bytes([m.unknown_1, m.unknown_2, m.unknown_3])+m.payload[:3], []).append((m.payload[3:], messages[i+1].payload[3:]))
+        ascii_payload = ''.join([chr(b) if b >= 32 and b <= 126 else '.' for b in m.payload])
+        if re.search(r'[^\.]{3}', ascii_payload):
+            print('Reply' if m.is_reply else 'Request', m.unknowns.hex(), ascii_payload)
     
-    for reg, msgs in registers.items():
-        if len(msgs) < 2: continue
-        diff = sum(req != msgs[0] for req in msgs)
-        # print(reg.hex(), diff)
-        if diff < 5:
-            # print("skipping!!!!!")
-            continue
-        for req, rep in msgs:
-            print(reg.hex(), req.hex(), rep.hex())
-        print()
-        
         
 if __name__ == "__main__":
     main()

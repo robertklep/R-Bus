@@ -23,6 +23,10 @@ I've collected these messages in [registers.txt](registers.txt).
 For now they don't make much sense yet but it narrows down the search space.
 It also clearly shows that there are some bit errors that could explain some weirdness.
 
+I've also had the idea to look for ascii data in the payloads.
+That wont get us the temperature, but it might give some other insights.
+I've collected these messages in [ascii.txt](ascii.txt).
+
 ### Nov 22, 2024
 
 I have started poking around with the message type.
