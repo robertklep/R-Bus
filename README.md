@@ -4,6 +4,25 @@ Virtually every modern heater and thermostat will speak OpenTherm, but Remeha in
 
 ## Current status
 
+### Nov 25, 2024
+
+I am trying to find the temperature in the data somewhere.
+I've tried to parse every right-alligned number type that fits in a payload, and the most promising candidates
+seem to be the numbers in the 20k range I saw last time, but they don't exactly match the temperature.
+
+Could they be the water temperature?
+You might expect hot water to be around 50&deg;C and the return temperature of the water to be slightly above ambient.
+Sadly I can't see those temperatures in the app to verify.
+
+Working on the assumption that in cases where the first 3 bytes of the request and reply payload match they indicate some register,
+I wrote a script that groups messages by type and register to see how they change over time.
+Many of them are constant and uninteresting, and som vary seemingly at random.
+But some vary at a few distinct points in time, possibly in response to me messing with the settings.
+
+I've collected these messages in [registers.txt](registers.txt).
+For now they don't make much sense yet but it narrows down the search space.
+It also clearly shows that there are some bit errors that could explain some weirdness.
+
 ### Nov 22, 2024
 
 I have started poking around with the message type.

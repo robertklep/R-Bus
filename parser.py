@@ -75,7 +75,7 @@ class MessageParser:
         while True:
             try:
                 msg = self.parse_message()
-                print(msg)
+                # print(msg)
                 messages.append(msg)
             except EOFError:
                 break
@@ -111,20 +111,24 @@ def main():
     finally:
         file.close()
 
-    c = Counter()
     print(f"Found {len(messages)} messages:")
+    registers = {}
     for i, m in enumerate(messages):
-        if m.unknown_1 == 0xfa:
-            # print(m)
-            r = messages[i+1]
-            request_hex = ' '.join(f'{b:02X}' for b in m.payload[0:3])
-            reply_hex = ' '.join(f'{b:02X}' for b in r.payload[0:3])
-            print(request_hex, "==", reply_hex, "=", request_hex == reply_hex)
-            c[f"{r.unknown_1:02X} {r.payload_length}"]+=1
-        if m.unknown_1 == 0xf3 and m.payload_length == 11:
-            # print(m)
-            print(struct.unpack("!BBBQ", m.payload))
-    pprint(c)
-
+        # check if the messages is a request and if the first 3 bytes of the payload match the reply
+        if not m.is_reply and len(m.payload) >= 3 and m.payload[:3] == messages[i+1].payload[:3]:
+            registers.setdefault(bytes([m.unknown_1, m.unknown_2, m.unknown_3])+m.payload[:3], []).append((m.payload[3:], messages[i+1].payload[3:]))
+    
+    for reg, msgs in registers.items():
+        if len(msgs) < 2: continue
+        diff = sum(req != msgs[0] for req in msgs)
+        # print(reg.hex(), diff)
+        if diff < 5:
+            # print("skipping!!!!!")
+            continue
+        for req, rep in msgs:
+            print(reg.hex(), req.hex(), rep.hex())
+        print()
+        
+        
 if __name__ == "__main__":
     main()
