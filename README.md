@@ -28,6 +28,11 @@ That wont get us the temperature, but it might give some other insights.
 I've collected these messages in [ascii.txt](ascii.txt).
 You can see fun stuff like `Zone1` for the heating zone, `EHC-07` the model of the heat pump, `7733242-06` and `7711844-06` could be serial numbers, and `MK2.1` could be a hardware revision, there are also heating modes like `Home` and `Sleep`. Other than that I'm not sure what we can learn here.
 
+One thing it does seem to confirm is that the replies are coming from `EHC-07`, the heat pump,
+which suggests the requests are from the thermostat.
+
+This also suggests that we should look for the thermostat set points in the requests.
+
 ### Nov 22, 2024
 
 I have started poking around with the message type.
