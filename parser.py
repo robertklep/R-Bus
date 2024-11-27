@@ -110,7 +110,10 @@ def main():
     for i, m in enumerate(messages):
         ascii_payload = ''.join([chr(b) if b >= 32 and b <= 126 else '.' for b in m.payload])
         if re.search(r'[^\.]{3}', ascii_payload):
-            print('Reply' if m.is_reply else 'Request', m.unknowns.hex(), ascii_payload)
+            # print(m)
+            payload_hex = ' '.join(f'{b:02X}' for b in m.payload)
+            print(payload_hex)
+            print(ascii_payload)
     
         
 if __name__ == "__main__":

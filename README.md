@@ -4,6 +4,74 @@ Virtually every modern heater and thermostat will speak OpenTherm, but Remeha in
 
 ## Current status
 
+### Nov 27, 2024
+
+A few realizations
+
+The room temperature and water setpoint will be in a request (thermostat)
+Outside temperature and water temperatures will be in replies (heat pump)
+
+One request with a uint64 stands out to me:
+```
+Request flags=00000000 length=11 unknown=[F4 04 01] payload=34 23 01 00 00 00 00 00 00 4C 66
+```
+
+That's 19558 in decimal, possibly the room temperature in millidegrees?
+
+In the ascii data we saw `Zone1`, and it made me realise that there can be multiple zones.
+But also that the boiler is daisy chained behind the heat pump.
+Could it be that some of those unknown triplets indicate the device and zone?
+
+The `Zone1` messages appears to have a pretty regular structure, but it doesn't hold up with other messages
+```
+05 # number of fields
+?? ?? typ  key?          len  data
+01 01 [34] [10 01 00 00] [05] [43 48 00 00 00]
+01 01 [34] [63 01 00 00] [01] [00]
+01 01 [34] [0F 01 00 00] [14] [5A 6F 6E 65 31 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00]
+01 01 [34] [64 01 00 00] [04] [BF A9 00 00]
+      typ  u16?
+01 01 [5C] [18 44]
+```
+
+`EHC-07`:
+```
+09 # not a length
+      tp key         ln dat
+01 01 30 0F 00 00 00 14 45 48 43 2D 30 37 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+01 01 20 01 04 00 00 02 07 01
+01 01 20 01 03 00 00 02 03 03
+??
+02 01 20 01 10 00 00 04 11 00 09 06
+01 01 30 18 00 00 E6 ??
+```
+`7733242-06`:
+```
+02 0B 01 ???
+#     tp key         ln data
+01 01 20 01 0B 00 00 14 37 37 33 33 32 34 32 2D 30 36 00 00 00 00 00 00 00 00 00 00
+01 01 50 3D 01 00 00 01 05
+01 01 20 01 0A 00 00 04 61 01 0B 2E
+01 01 20 01 02 00 00 02 07 02
+13 ???
+```
+`MK2.1`:
+```
+no header
+   ?? tp key         ln data
+01 03 30 0F 00 00 00 14 4D 4B 32 2E 31 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+01 03 20 01 04 00 00 02 06 01
+01 03 20 01 03 00 00 02 01 02
+AD 09 ???
+```
+`7711844-06`:
+```
+      ln data
+20 01 0B 37 37 31 31 38 34 34 2D 30 36 00
+?? ?? ?? uint64?           "GO"?
+00 00 00 00 00 00 00 00 00 47 4F
+```
+
 ### Nov 25, 2024
 
 I am trying to find the temperature in the data somewhere.
