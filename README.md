@@ -4,6 +4,28 @@ Virtually every modern heater and thermostat will speak OpenTherm, but Remeha in
 
 ## Current status
 
+### Dec 20, 2024
+
+The monitor PCB arrived and works!
+So now I have a permanent way to access logs from R-Bus. I just don't have somewhere to log to yet.
+
+I found a RE discord:
+
+> Fried Microcrisps
+```
+fa0001542e01 11ad 1a033701
+```
+> These to me look like
+> 1 byte integer part <.> 3byte decimal part
+
+```
+fa0001302300 9e29 2c658403483aff71
+```
+
+> This I highlighted I think is most likely milliseconds
+> Your time shown in screenshot is around 4.24pm or 1624H, for brevity it shall be 16.5 hours
+> This is equal to 59400000 milliseconds, which in hex is 038A5F40 (be)
+> Close enough
 ### Nov 27, 2024
 
 A few realizations
