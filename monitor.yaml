@@ -1,0 +1,37 @@
+esphome:
+  name: rbus-monitor
+
+esp32:
+  board: featheresp32-s2
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  password: ""
+
+ota:
+  - platform: esphome
+    password: ""
+
+uart:
+  rx_pin: GPIO38
+  baud_rate: 9600
+  debug:
+    direction: RX
+    dummy_receiver: true
+
+wifi:
+  ssid: !secret ssid
+  password: !secret password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Rbus-Monitor Fallback Hotspot"
+    password: "tNiLpmD1D2qV"
+
+captive_portal:
+    
