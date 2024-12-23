@@ -4,6 +4,52 @@ Virtually every modern heater and thermostat will speak OpenTherm, but Remeha in
 
 ## Current status
 
+### Dec 23, 2024
+
+Ladies and gentelmen, we got him.
+
+I updated the parser so I could live-stream data from the monitor board using
+
+```bash
+esphome logs --device rbus-monitor.local monitor.yaml | grep --line-buffered -oE "[0-9A-F]{2}(:[0-9A-F]{2})*$" | python parser.py --hex | tee unseen.txt
+```
+
+Then I updated the parser to keep track of seen messages and only print requests or replies with new data.
+That cut a lot of noise, and let me see what's actually changing.
+
+The most common message was the one Fried Microcrisps identified as a timestamp.
+After a bit of messing around I was able to parse the timestamp and further cut the noise.
+
+Then I was able to identify relevant messagest related to changing the operating mode and temperature.
+And then I found a similar message that appears to be the current temperature!
+
+So now we can parse
+- the time (yay...)
+- the active heater mode (scheduled, manual, off)
+- the active hot water mode (scheduled, comfort, eco)
+- the set temperature in tenths of degrees
+- the current room temperature in hundres of degrees
+
+That's all the basic info you'd want to monitor!
+
+I've now moved on to further inspecting the cluster of FA register reads.
+I'm fairly convinced all of them end with a 2 byte CRC of some sort, exact algorithm TBD.
+It appears that the reply "unknown" bytes contain the length of the register and how many values?
+
+I've written similar code to only print registers that have changed.
+I've identified two registers that contain the hot water temperature setting in hundreths of degrees.
+There seem to be a few registers that could plausably be water tempertures, but can't see those in the app to verify.
+
+What I'd really like to find is the data for power usage.
+
+These are some interesting registers:
+```
+542e01 (662,) (661,) # changes gradually
+431f00 (4514,) (4484,) # changes gradually
+540801 (0,) (3640,) # becomes zero if heating is turned off
+500100 (1,) (0,) # hot water / heating?
+```
+
 ### Dec 20, 2024
 
 The monitor PCB arrived and works!
