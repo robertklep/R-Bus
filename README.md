@@ -4,6 +4,11 @@ Virtually every modern heater and thermostat will speak OpenTherm, but Remeha in
 
 ## Current status
 
+### Mar 18, 2025
+
+While I'm occupied launching a [local AI voice assistant](https://sanctuary-systems.com/sentinel-core/), someone emailed me [metadatapoints.xml](/metadatapoints.xml) that he extracted from Recom.
+It appears to contain descriptions for all the registers, exciting!
+
 ### Dec 23, 2024
 
 Ladies and gentelmen, we got him.
