@@ -10,25 +10,23 @@ import string
 import time
 import json
 
-dps = json.load(open('od.json'))
+def warn(*a):
+    print('[WARN]', *a, file = sys.stderr)
 
-def parse_U8(v, *a):
-    return struct.unpack('<B', v)[0]
+def parse_(fmt, id, data):
+    size     = struct.calcsize(fmt)
+    trailing = len(data) % size
+    if trailing:
+        warn(f'{trailing} trailing bytes while parsing {id}')
+        data = data[:len(data) - trailing]
+    return [ r[0] for r in struct.iter_unpack(fmt, data) ]
 
-def parse_U16(v, *a):
-    return struct.unpack('<H', v)[0]
-
-def parse_U32(v, *a):
-    return struct.unpack('<L', v)[0]
-
-def parse_I8(v, *a):
-    return struct.unpack('<b', v)[0]
-
-def parse_I16(v, *a):
-    return struct.unpack('<h', v)[0]
-
-def parse_I32(v, *a):
-    return struct.unpack('<l', v)[0]
+parse_U8  = lambda v, *a: parse_('<B', 'U8', v)
+parse_U16 = lambda v, *a: parse_('<H', 'U16', v)
+parse_U32 = lambda v, *a: parse_('<L', 'U32', v)
+parse_I8  = lambda v, *a: parse_('<b', 'I8', v)
+parse_I16 = lambda v, *a: parse_('<h', 'I16', v)
+parse_I32 = lambda v, *a: parse_('<l', 'I32', v)
 
 def parse_TimeOfDay(v, *a):
     EPOCH        = 441763200 # 1984-01-01T00:00:00Z
@@ -37,11 +35,12 @@ def parse_TimeOfDay(v, *a):
     return (timestamp, datetime.fromtimestamp(timestamp, UTC).isoformat())
 
 def parse_Enum(v, key):
-    dp = dps[key]
-    v  = str(parse_U8(v))
+    dp = DATAPOINTS[key]
+    v  = str(parse_U8(v)[0])
     return dp['values'][v]['description'] if v in dp['values'] else v
 
-fmts = {
+DATAPOINTS = json.load(open('datapoints.json'))
+FORMATS    = {
     'U8':        parse_U8,
     'U16':       parse_U16,
     'U32':       parse_U32,
@@ -64,7 +63,7 @@ class Message:
     data:           bytes
     trailer:        bytes
     payload:        bytes
-    
+
     def __str__(self):
         payload_hex = ' '.join(f'{b:02X}' for b in self.payload)
         return (f"{'Reply  ' if self.is_reply else 'Request'} "
@@ -102,13 +101,13 @@ class Message:
 class MessageParser:
     def __init__(self, file: BinaryIO):
         self.file = file
-        
+
     def read_bytes(self, count: int) -> bytes:
         data = self.file.read(count)
         if len(data) < count:
             raise EOFError(f"Expected {count} bytes, got {len(data)}")
         return data
-    
+
     def next_message(self):
         data = bytes()
         while True:
@@ -139,17 +138,23 @@ class MessageParser:
     def parse_all(self):
         for msg in self.next_message():
             print(msg)
-            if msg.datapoint in dps:
-                dp    = dps[msg.datapoint]
+            if msg.datapoint in DATAPOINTS:
+                dp    = DATAPOINTS[msg.datapoint]
                 fmt   = dp['type']
                 value = msg.data
                 print(f'DP[{msg.datapoint}][{fmt}]', f'"{dp['desc']}"', end = ' ')
                 if msg.is_reply:
-                    if fmt in fmts:
+                    if fmt in FORMATS:
                         try:
-                            value = fmts[fmt](value, msg.datapoint)
+                            value = FORMATS[fmt](value, msg.datapoint)
                             if 'gain' in dp:
-                                value *= dp['gain']
+                                value = [ v * dp['gain'] for v in value ]
+                            if dp['is_array']:
+                                max_allowed = dp.get('max_array_size', 1)
+                                if len(value) > max_allowed:
+                                    warn(f'array size larger than allowed (size={len(value)}, max allowed={max_allowed}')
+                            else:
+                                value = value[0]
                         except Exception as e:
                             print('Error   formatting failed:', e)
                     else:
@@ -172,7 +177,7 @@ class HexFile(io.TextIOBase):
             byte = self.buffer.read(1)
             if byte in string.hexdigits:
                 buf += byte
-        
+
         return binascii.unhexlify(buf)
 
 def hex_string_to_bytes(hex_string: str) -> bytes:
