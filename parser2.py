@@ -29,26 +29,53 @@ parse_I16 = lambda v, *a: parse_('<h', 'I16', v)
 parse_I32 = lambda v, *a: parse_('<l', 'I32', v)
 
 def parse_TimeOfDay(v, *a):
+    # STRUCT OF
+    #   UNSIGNED28 ms,
+    #   VOID4      reserved,
+    #   UNSIGNED16 days
     EPOCH        = 441763200 # 1984-01-01T00:00:00Z
     millis, days = struct.unpack('<LH', v)
     timestamp    = EPOCH + int(millis / 1000) + days * 24 * 60 * 60
     return (timestamp, datetime.fromtimestamp(timestamp, UTC).isoformat())
 
 def parse_Enum(v, key):
-    dp = DATAPOINTS[key]
-    v  = str(parse_U8(v)[0])
-    return dp['values'][v]['description'] if v in dp['values'] else v
+    obj = OBJECTS[key]
+    v   = str(parse_U8(v)[0])
+    return obj['values'][v]['description'] if v in obj['values'] else v
 
-DATAPOINTS = json.load(open('datapoints.json'))
-FORMATS    = {
-    'U8':        parse_U8,
-    'U16':       parse_U16,
-    'U32':       parse_U32,
-    'I8':        parse_I8,
-    'I16':       parse_I16,
-    'I32':       parse_I32,
-    'TimeOfDay': parse_TimeOfDay,
-    'Enum':      parse_Enum,
+def parse_VisibleString(v, *a):
+    try:
+        v = v.decode('ascii')
+    except:
+        warn('unable to convert bytes to ASCII')
+        return v
+    # visible strings seem to be NUL-padded
+    return v.split('\0', 1)[0]
+
+# https://stackoverflow.com/a/75328573
+def crc16modbus(data:str) -> int:
+    crc = 0xFFFF
+    for n in range(len(data)):
+        crc ^= data[n]
+        for i in range(8):
+            if crc & 1:
+                crc >>= 1
+                crc ^= 0xA001
+            else:
+                crc >>= 1
+    return crc
+
+OBJECTS = json.load(open('object-dictionary.json'))
+FORMATS = {
+    'U8':            parse_U8,
+    'U16':           parse_U16,
+    'U32':           parse_U32,
+    'I8':            parse_I8,
+    'I16':           parse_I16,
+    'I32':           parse_I32,
+    'TimeOfDay':     parse_TimeOfDay,
+    'Enum':          parse_Enum,
+    'VisibleString': parse_VisibleString,
 }
 
 @dataclass(eq = True, frozen = True)
@@ -58,10 +85,11 @@ class Message:
     flags:          int
     payload_length: int
     unknowns:       bytes
-    datapoint:      str
+    index:          str
     subindex:       bytes
     data:           bytes
-    trailer:        bytes
+    checksum:       bytes
+    crc:            bytes
     payload:        bytes
 
     def __str__(self):
@@ -70,13 +98,17 @@ class Message:
                 f"flags={self.flags:08b} "
                 f"length={self.payload_length:02} "
                 f"unknowns={self.unknowns.hex()} "
-                f"datapoint={self.datapoint} "
+                f"index={self.index} "
                 f"subindex={self.subindex:02} "
                 f"data={self.data.hex()} "
-                f"trailer={self.trailer.hex()} "
+                f"checksum={self.checksum.hex()} "
+                f"crc={self.crc:04x} "
                 f"payload={payload_hex} "
                 f"frame={self.frame.hex()}"
         )
+
+    def checksum_valid(self) -> bool:
+        return self.checksum == self.crc
 
     @staticmethod
     def from_frame(frame):
@@ -88,10 +120,11 @@ class Message:
                 flags          = frame[3],
                 payload_length = frame[4],
                 unknowns       = frame[5:8],
-                datapoint      = payload[0:2].hex().upper(),
+                index          = payload[0:2].hex().upper(),
                 subindex       = payload[2], # XXX =  is this actually the subindex?
                 data           = payload[3:-2],
-                trailer        = payload[-2:],
+                checksum       = payload[-2:],
+                crc            = crc16modbus(frame[1:-2]),
                 payload        = payload
             )
         except Exception as e:
@@ -114,12 +147,12 @@ class MessageParser:
             data += self.read_bytes(1)
             if data[-2:] == b'\x01\x00':
                 # extract request/reply frame
-                frame = data[-2:] # header
-                frame += self.read_bytes(1) # message type
-                frame += self.read_bytes(1) # flags
-                frame += self.read_bytes(1) # payload length
+                frame = data[-2:]                # header
+                frame += self.read_bytes(1)      # message type
+                frame += self.read_bytes(1)      # flags
+                frame += self.read_bytes(1)      # payload length
                 length = frame[-1:][0]
-                frame += self.read_bytes(3) # unknowns
+                frame += self.read_bytes(3)      # unknowns
                 frame += self.read_bytes(length) # payload
 
                 # create message from frame and emit it
@@ -138,32 +171,33 @@ class MessageParser:
     def parse_all(self):
         for msg in self.next_message():
             print(msg)
-            if msg.datapoint in DATAPOINTS:
-                dp    = DATAPOINTS[msg.datapoint]
-                fmt   = dp['type']
+            if msg.index in OBJECTS:
+                obj   = OBJECTS[msg.index]
+                fmt   = obj['type']
                 value = msg.data
-                print(f'DP[{msg.datapoint}][{fmt}]', f'"{dp['desc']}"', end = ' ')
+                print(f'OBJ[{msg.index}][{fmt}]', f'"{obj['desc']}"', end = ' ')
                 if msg.is_reply:
                     if fmt in FORMATS:
                         try:
-                            value = FORMATS[fmt](value, msg.datapoint)
-                            if 'gain' in dp:
-                                value = [ v * dp['gain'] for v in value ]
-                            if dp['is_array']:
-                                max_allowed = dp.get('max_array_size', 1)
+                            value = FORMATS[fmt](value, msg.index)
+                            if 'gain' in obj:
+                                value = [ v * obj['gain'] for v in value ]
+                            if obj['is_array']:
+                                # validate array size
+                                max_allowed = obj.get('max_array_size', 1)
                                 if len(value) > max_allowed:
-                                    warn(f'array size larger than allowed (size={len(value)}, max allowed={max_allowed}')
-                            else:
+                                    warn(f'array size larger than allowed (size={len(value)}, max allowed={max_allowed})')
+                            elif fmt != 'TimeOfDay':
                                 value = value[0]
                         except Exception as e:
                             print('Error   formatting failed:', e)
                     else:
                         print(f"unhandled format '{fmt}'")
-                    print(f'value={value}', f'unit={dp["unit"]}' if 'unit' in dp else '')
+                    print(f'value={value}', f'unit={obj["unit"]}' if 'unit' in obj else '')
                 else:
                     print()
             else:
-                print(f'UNKNOWN DP {msg.datapoint}')
+                print(f'UNKNOWN OBJECT {msg.index}')
             print()
 
 class HexFile(io.TextIOBase):
@@ -175,6 +209,9 @@ class HexFile(io.TextIOBase):
         buf = ""
         while len(buf) < 2*bytes:
             byte = self.buffer.read(1)
+            if len(byte) == 0:
+                # EOF
+                return ''
             if byte in string.hexdigits:
                 buf += byte
 
